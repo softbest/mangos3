@@ -35,7 +35,7 @@
 #include "Util.h"                                           // for Tokens typedef
 #include "AchievementMgr.h"
 #include "ReputationMgr.h"
-#include "BattleGround.h"
+#include "BattleGround/BattleGround.h"
 #include "SharedDefines.h"
 #include "LFG.h"
 #include "AntiCheat.h"
@@ -60,7 +60,7 @@ class DungeonPersistentState;
 class Spell;
 class Item;
 struct AreaTrigger;
-class WorldPvP;
+class OutdoorPvP;
 
 typedef std::deque<Mail*> PlayerMails;
 
@@ -395,14 +395,6 @@ enum RaidGroupError
     ERR_RAID_GROUP_ONLY                 = 2,
     ERR_RAID_GROUP_FULL                 = 3,
     ERR_RAID_GROUP_REQUIREMENTS_UNMATCH = 4
-};
-
-enum PlayerMovementType
-{
-    MOVE_ROOT       = 1,
-    MOVE_UNROOT     = 2,
-    MOVE_WATER_WALK = 3,
-    MOVE_LAND_WALK  = 4
 };
 
 enum DrunkenState
@@ -1062,9 +1054,6 @@ class MANGOS_DLL_SPEC Player : public Unit
 
         void CleanupsBeforeDelete();
 
-        static UpdateMask updateVisualBits;
-        static void InitVisibleBits();
-
         void AddToWorld();
         void RemoveFromWorld();
 
@@ -1624,7 +1613,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         TrainerSpellState GetTrainerSpellState(TrainerSpell const* trainer_spell, uint32 reqLevel) const;
         bool IsSpellFitByClassAndRace(uint32 spell_id, uint32* pReqlevel = NULL) const;
         bool IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) const;
-        bool IsImmuneToSpell(SpellEntry const* spellInfo) const;
+        bool IsImmuneToSpell(SpellEntry const* spellInfo, bool isFriendly) const;
         bool IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index) const;
 
         void SendProficiency(ItemClass itemClass, uint32 itemSubclassMask);
@@ -1940,7 +1929,8 @@ class MANGOS_DLL_SPEC Player : public Unit
             StopMirrorTimer(FIRE_TIMER);
         }
 
-        void SetMovement(PlayerMovementType pType);
+        void SetRoot(bool enable) override;
+        void SetWaterWalk(bool enable) override;
 
         void JoinedChannel(Channel *c);
         void LeftChannel(Channel *c);
@@ -2202,18 +2192,13 @@ class MANGOS_DLL_SPEC Player : public Unit
         bool GetRandomWinner() { return m_IsBGRandomWinner; }
         void SetRandomWinner(bool isWinner);
 
+        /*********************************************************/
+        /***                 OUTDOOR PVP SYSTEM                ***/
+        /*********************************************************/
+
+        // returns true if the player is in active state for capture point capturing
         bool CanUseCapturePoint();
-
-        /*********************************************************/
-        /***                 WORLD PVP SYSTEM                  ***/
-        /*********************************************************/
-
-        // returns true if the player is in active state for outdoor pvp objective capturing
-        bool CanUseOutdoorCapturePoint();
-
-        WorldPvP* GetWorldPvP() const;
-        // returns true if the player is in active state for outdoor pvp objective capturing
-        bool IsWorldPvPActive();
+        bool IsOutdoorPvPActive();
         virtual void HandleObjectiveComplete(Player* /*pPlayer*/) {};
 
         /*********************************************************/
@@ -2258,7 +2243,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         /*********************************************************/
         bool HasMovementFlag(MovementFlags f) const;        // for script access to m_movementInfo.HasMovementFlag
         void UpdateFallInformationIfNeed(MovementInfo const& minfo,uint16 opcode);
-        void SetFallInformation(uint32 time, float z)
+        void SetFallInformation(uint32 time, float z) override
         {
             m_lastFallTime = time;
             m_lastFallZ = z;
@@ -2548,9 +2533,6 @@ class MANGOS_DLL_SPEC Player : public Unit
         void _SaveGlyphs();
         void _SaveTalents();
         void _SaveStats();
-
-        void _SetCreateBits(UpdateMask *updateMask, Player *target) const;
-        void _SetUpdateBits(UpdateMask *updateMask, Player *target) const;
 
         /*********************************************************/
         /***              ENVIRONMENTAL SYSTEM                 ***/
